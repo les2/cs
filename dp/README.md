@@ -11,7 +11,7 @@ There are two main programs:
 Generate test data (random integers).
 
   ```
-  java RandomIntegers AMOUNT
+  java RandomIntegers NUMBER_OF_NUMBERS
   ```
 
 And the solver:
