@@ -39,6 +39,12 @@ class MaximumSubarray {
         return Subarray.maximumBruteForce(array);
       }
     },
+    BRUTE_FORCE_OPTIMIZED("brute_force_optimized") {
+      @Override
+      public Subarray solve(int[] array) {
+        return Subarray.maximumOptimizedBruteForce(array);
+      }
+    },
     DYNAMIC_PROGRAMMING("dp") {
       @Override
       public Subarray solve(int[] array) {
@@ -115,11 +121,18 @@ class MaximumSubarray {
     }
 
     final int[] array;
-    if("-".equals(args[startParsingIndex])
-        && args.length == (startParsingIndex+1)) {
-      array = parseStandardIn();
-    } else {
-      array = ArrayUtils.parse(args, startParsingIndex);
+    try {
+      if("-".equals(args[startParsingIndex])
+          && args.length == (startParsingIndex+1)) {
+        array = parseStandardIn();
+      } else {
+        array = ArrayUtils.parse(args, startParsingIndex);
+      }
+    } catch(ParseException pe) {
+      System.err.println(String.format(
+            "Invalid integer input or unrecognized algorithm: %s", pe.getInput()));
+      System.exit(1);
+      throw pe; // unreachable code! System.exit will exit!
     }
 
     // System.out.println("== array ==");
@@ -129,6 +142,28 @@ class MaximumSubarray {
     System.out.println("== maximum subarray ==");
     System.out.println(algorithm.solve(array).toString(array));
   }
+}
+
+class ParseException extends RuntimeException {
+
+  private final static long serialVersionUID = 1L;
+
+  private final String input;
+
+  public ParseException(String input, Throwable cause) {
+    super("Could not parse: " + input, cause);
+    this.input = input;
+  }
+
+  public ParseException(String input) {
+    super("Could not parse: " + input);
+    this.input = input;
+  }
+
+  public String getInput() {
+    return input;
+  }
+
 }
 
 /**
@@ -180,16 +215,8 @@ class Subarray {
   public static Subarray fromRange(int[] array, int start, int end) {
     return new Subarray(start, end, ArrayUtils.sum(array, start, end+1), 0);
   }
-
-  /**
-   * Get a new Subarray with the given "debt" (positive or negative) added.
-   * The start, end, and sum will be the same after the adjustment.
-   *
-   * @param debtAdjustment
-   *            the amount to add to the debt
-   */
-  public Subarray adjust(int debtAdjustment) {
-    return new Subarray(start, end, sum, debt+debtAdjustment);
+  public static Subarray fromRange(int[] array, int sum, int start, int end) {
+    return new Subarray(start, end, sum, 0);
   }
 
   /**
@@ -223,13 +250,31 @@ class Subarray {
     return buf.toString();
   }
 
-  private static Subarray max(Subarray a, Subarray b, Subarray c) {
-    if (a.sum > b.sum)
-      return a.sum > c.sum ? a : c;
-    return b.sum > c.sum ? b : c;
-  }
   private static Subarray max(Subarray a, Subarray b) {
     return a.sum > b.sum ? a : b;
+  }
+
+  public static Subarray maximumOptimizedBruteForce(final int[] array) {
+    if(array.length == 0)
+      throw new IllegalArgumentException("Empty array has no maximum subarray.");
+
+    // O(n^2)
+    Subarray max = null;
+    for(int start = 0; start < array.length; start++) {
+      int sum = 0;
+      for(int end = start; end < array.length; end++) {
+        sum += array[end];
+        if(max == null) {
+          max = Subarray.fromRange(array, sum, start, end);
+        } else {
+          if(sum > max.sum) {
+            max = Subarray.fromRange(array, sum, start, end);
+          }
+        }
+      }
+    }
+
+    return max;
   }
 
   // this is the slowest algorithm; it should take a while
@@ -267,15 +312,13 @@ class Subarray {
     Subarray max = Subarray.ofElement(array, 0);
 
     // the maximum subarray seen so far ending at n
-    Subarray maxEndingAtN = Subarray.ofElement(array, 0);
+    Subarray maxEndingAtN = max;
     for(int n = 1; n < array.length; n++) {
 
         maxEndingAtN = max(Subarray.ofElement(array, n),
                                maxEndingAtN.extend(array[n], n));
 
-        max = max(max.adjust(array[n]),
-                     max.extend(array[n], n),
-                     maxEndingAtN);
+        max = max(max, maxEndingAtN);
     }
 
     return max;
@@ -293,7 +336,11 @@ class ArrayUtils {
     int[] result = new int[array.length - start];
 
     for(int i = start; i < array.length; i++) {
-      result[i - start] = Integer.parseInt(array[i]);
+      try {
+        result[i - start] = Integer.parseInt(array[i]);
+      } catch(NumberFormatException nfe) {
+        throw new ParseException(array[i], nfe);
+      }
     }
     return result;
   }

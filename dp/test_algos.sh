@@ -5,6 +5,7 @@ set -e
 function run_test {
   echo "test data: $@"
   java MaximumSubarray brute_force $@
+  java MaximumSubarray brute_force_optimized $@
   java MaximumSubarray dp $@
 }
 
